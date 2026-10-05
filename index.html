@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vici Task - Project & Task Checklist</title>
+  
+  <!-- Google Fonts: Noto Sans Thai -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans Thai"', 'sans-serif'],
+          },
+          colors: {
+            pastel: {
+              pink: '#F472B6',
+              purple: '#C084FC',
+              blue: '#7DD3FC',
+              cyan: '#A5F3FC',
+              yellow: '#F59E0B',
+              red: '#E11D48'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Noto Sans Thai', sans-serif; }
+    
+    /* Custom Pastel Checkbox (สำหรับ Task หลัก) */
+    .custom-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2px solid #CBD5E1;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .custom-checkbox:checked {
+      background: linear-gradient(135deg, #7DD3FC 0%, #C084FC 100%);
+      border-color: transparent;
+    }
+    .custom-checkbox:checked::after {
+      content: '\f00c';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      color: white;
+      font-size: 12px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Custom Subtask Checkbox (มุมมน + Pastel Gradient เมื่อติ๊ก) */
+    .subtask-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 5px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .subtask-checkbox:checked {
+      background: linear-gradient(135deg, #7DD3FC 0%, #C084FC 100%);
+      border-color: transparent;
+    }
+    .subtask-checkbox:checked::after {
+      content: '\f00c';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      color: white;
+      font-size: 9px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Gradient Progress Bar */
+    .gradient-progress {
+      background: linear-gradient(90deg, #7DD3FC 0%, #C084FC 100%);
+    }
+  </style>
+
+  <!-- FIREBASE ONLINE DATABASE CONFIGURATION -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // คีย์เชื่อมต่อ Firebase WinnicTask ของคุณ
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAUmh19z6Spd275e2wU8El9asqS4X5hSY",
+      authDomain: "winnictask.firebaseapp.com",
+      projectId: "winnictask",
+      storageBucket: "winnictask.firebasestorage.app",
+      messagingSenderId: "84454026355",
+      appId: "1:84454026355:web:3e3fa0e20aaf142b790e06",
+      measurementId: "G-6Z32WBG81M"
+    };
+
+    // Initialize Firebase & Firestore Database
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // ฟังก์ชันบันทึกข้อมูลไปยัง Firebase Cloud
+    window.saveDataToFirebase = async function(projectsData, tasksData) {
+      try {
+        await setDoc(doc(db, "vici_task_data", "main_store"), {
+          projects: projectsData,
+          tasks: tasksData,
+          updatedAt: new Date().toISOString()
+        });
+        console.log("บันทึกข้อมูลไปยัง Firebase เรียบร้อยแล้ว!");
+      } catch (e) {
+        console.error("เกิดข้อผิดพลาดในการบันทึกไปยัง Firebase: ", e);
+      }
+    };
+
+    // ดึงข้อมูล Realtime อัตโนมัติเมื่อมีข้อมูลเปลี่ยนแปลงบน Cloud
+    onSnapshot(doc(db, "vici_task_data", "main_store"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.projects) window.projects = data.projects;
+        if (data.tasks) window.tasks = data.tasks;
+        if (typeof window.render === 'function') {
+          window.render();
+        }
+      }
+    });
+  </script>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 sm:px-6">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-300 via-purple-300 to-pink-300 flex items-center justify-center text-white font-bold text-xl shadow-md">
+          <i class="fa-solid fa-square-check"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-sky-500 to-purple-600 bg-clip-text text-transparent">Vici Task</h1>
+          <p class="text-xs text-slate-400">Project & Checklist Dashboard</p>
+        </div>
+      </div>
+
+      <!-- Center Status & Actions -->
+      <div class="flex items-center gap-3 ml-auto sm:ml-0">
+        <span class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+          <span id="lang-auto-save">บันทึกออนไลน์ (Firebase Connected)</span>
+        </span>
+        
+        <!-- Language Switcher -->
+        <button id="lang-toggle-btn" onclick="toggleLanguage()" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium transition flex items-center gap-1.5">
+          <i class="fa-solid fa-globe text-slate-400"></i>
+          <span id="current-lang-text">TH / EN</span>
+        </button>
+
+        <button onclick="resetSampleData()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition">
+          <i class="fa-solid fa-rotate-right mr-1"></i> <span id="lang-reset-data">รีเซ็ตข้อมูล</span>
+        </button>
+
+        <button onclick="openProjectModal()" class="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-semibold transition border border-purple-200">
+          <i class="fa-solid fa-folder-plus mr-1"></i> <span id="lang-add-project-btn">+ โปรเจกต์ใหม่</span>
+        </button>
+
+        <button onclick="openTaskModal()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-400 to-purple-500 hover:opacity-90 text-white text-xs font-semibold shadow-sm transition">
+          <i class="fa-solid fa-plus mr-1"></i> <span id="lang-add-task-btn">+ สร้างงานใหม่</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <div class="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row gap-6 p-4 sm:p-6">
+    
+    <!-- LEFT SIDEBAR: Projects List -->
+    <aside class="w-full md:w-64 flex-shrink-0 space-y-4">
+      <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider px-2">
+          <span><i class="fa-solid fa-folder mr-1"></i> <span id="lang-projects-header">โปรเจกต์ทั้งหมด</span></span>
+          <span id="total-projects-badge" class="bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-bold">0</span>
+        </div>
+
+        <!-- All Projects Button -->
+        <button onclick="selectProject('all')" id="project-item-all" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition flex items-center justify-between bg-sky-50 text-sky-600 border border-sky-100">
+          <span class="flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-sky-400"></i>
+            <span id="lang-all-projects">รวมทุกโปรเจกต์ (All)</span>
+          </span>
+          <span id="all-tasks-count" class="text-xs bg-white px-2 py-0.5 rounded-full text-slate-500 font-semibold shadow-xs">0</span>
+        </button>
+
+        <hr class="border-slate-100">
+
+        <!-- Dynamic Projects List -->
+        <div class="space-y-1 max-h-[400px] overflow-y-auto pr-1" id="projects-list-container">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Add Project Button inside Sidebar -->
+        <button onclick="openProjectModal()" class="w-full py-2 border-2 border-dashed border-purple-200 hover:border-purple-300 rounded-xl text-xs font-medium text-purple-600 hover:bg-purple-50 transition flex items-center justify-center gap-1">
+          <i class="fa-solid fa-plus"></i> <span id="lang-create-project-sidebar">สร้างโปรเจกต์ใหม่</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="flex-1 space-y-6">
+      
+      <!-- Full-Width Main Dashboard Header & Highlighted Progress Box -->
+      <section class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-4">
+        <div>
+          <div class="text-xs text-slate-400 font-medium mb-1 flex items-center gap-1">
+            <span id="lang-breadcrumb-dash">แดชบอร์ด</span> / <span id="current-project-breadcrumb" class="text-slate-600 font-semibold">ภาพรวมทั้งหมด</span>
+          </div>
+          <h2 id="current-project-title" class="text-2xl font-bold text-slate-800">ภาพรวมงานทั้งหมด</h2>
+          <p id="current-project-desc" class="text-xs text-slate-500 mt-1">ติดตามความคืบหน้า รายการเช็กลิสต์ และกำหนดส่งงานย่อยทั้งหมด</p>
+        </div>
+
+        <!-- Expanded Full-Width High-Visibility Progress Bar Box -->
+        <div class="w-full bg-gradient-to-r from-sky-50/80 via-purple-50/50 to-pink-50/80 p-5 rounded-xl border border-purple-100 space-y-3">
+          <div class="flex flex-wrap justify-between items-end gap-2">
+            <div>
+              <span class="text-xs font-bold text-purple-600 tracking-wide uppercase" id="lang-proj-progress-label">ความคืบหน้าของโปรเจกต์</span>
+              <div class="flex items-baseline gap-2 mt-0.5">
+                <span id="overall-progress-text" class="text-3xl font-extrabold text-slate-800">0%</span>
+                <span id="overall-progress-sub" class="text-xs text-slate-500 font-medium">(สำเร็จ 0 จากทั้งหมด 0 รายการ)</span>
+              </div>
+            </div>
+            <span id="remaining-tasks-badge" class="px-3 py-1 bg-white/80 backdrop-blur rounded-full text-xs font-semibold text-purple-600 border border-purple-200 shadow-xs">
+              เหลืองานอีก 0 รายการ
+            </span>
+          </div>
+
+          <!-- Prominent Progress Bar Bar -->
+          <div class="w-full bg-slate-200/80 h-3.5 rounded-full overflow-hidden p-0.5 shadow-inner">
+            <div id="overall-progress-bar" class="gradient-progress h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stat Summary Cards -->
+      <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div onclick="setFilterStatus('all')" class="cursor-pointer bg-white p-4 rounded-xl border border-slate-100 shadow-xs hover:border-sky-300 transition space-y-1">
+          <div class="flex justify-between items-center text-slate-400 text-xs font-medium">
+            <span id="lang-stat-total">งานทั้งหมด</span>
+            <i class="fa-solid fa-list-check text-sky-400"></i>
+          </div>
+          <div class="text-xl font-bold text-slate-800" id="stat-total-val">0 <span class="text-xs font-normal text-slate-400">รายการ</span></div>
+        </div>
+
+        <div onclick="setFilterStatus('completed')" class="cursor-pointer bg-white p-4 rounded-xl border border-slate-100 shadow-xs hover:border-emerald-300 transition space-y-1">
+          <div class="flex justify-between items-center text-slate-400 text-xs font-medium">
+            <span id="lang-stat-completed">ทำเสร็จแล้ว</span>
+            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+          </div>
+          <div class="text-xl font-bold text-emerald-600" id="stat-completed-val">0 <span class="text-xs font-normal text-emerald-500">(0%)</span></div>
+        </div>
+
+        <div onclick="setFilterStatus('duesoon')" class="cursor-pointer bg-white p-4 rounded-xl border border-slate-100 shadow-xs hover:border-amber-300 transition space-y-1">
+          <div class="flex justify-between items-center text-slate-400 text-xs font-medium">
+            <span id="lang-stat-duesoon">ใกล้กำหนดส่ง</span>
+            <i class="fa-solid fa-clock text-amber-400"></i>
+          </div>
+          <div class="text-xl font-bold text-[#F59E0B]" id="stat-duesoon-val">0 <span class="text-xs font-normal text-amber-500">ภายใน 3 วัน</span></div>
+        </div>
+
+        <div onclick="setFilterStatus('overdue')" class="cursor-pointer bg-white p-4 rounded-xl border border-slate-100 shadow-xs hover:border-rose-300 transition space-y-1">
+          <div class="flex justify-between items-center text-slate-400 text-xs font-medium">
+            <span id="lang-stat-overdue">เลยกำหนด</span>
+            <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+          </div>
+          <div class="text-xl font-bold text-[#E11D48]" id="stat-overdue-val">0 <span class="text-xs font-normal text-rose-500">ต้องเร่งด่วน</span></div>
+        </div>
+      </section>
+
+      <!-- Search & Filters Toolbar -->
+      <section class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+            <input type="text" id="search-input" oninput="renderTasks()" placeholder="ค้นหาชื่องาน หรือคำอธิบาย..." class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-purple-400 bg-slate-50">
+          </div>
+
+          <select id="priority-filter" onchange="renderTasks()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 text-slate-600 focus:outline-none focus:border-purple-400">
+            <option value="all">ความสำคัญ: ทั้งหมด</option>
+            <option value="High">ด่วนมาก (High)</option>
+            <option value="Medium">ปานกลาง (Medium)</option>
+            <option value="Low">ปกติ (Low)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <div class="flex flex-wrap gap-1" id="filter-pills-container">
+            <button onclick="setFilterStatus('all')" id="filter-btn-all" class="px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 text-white">ทั้งหมด</button>
+            <button onclick="setFilterStatus('active')" id="filter-btn-active" class="px-3 py-1 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100">ยังไม่เสร็จ</button>
+            <button onclick="setFilterStatus('completed')" id="filter-btn-completed" class="px-3 py-1 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100">เสร็จแล้ว</button>
+            <button onclick="setFilterStatus('duesoon')" id="filter-btn-duesoon" class="px-3 py-1 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100">ใกล้กำหนด</button>
+            <button onclick="setFilterStatus('overdue')" id="filter-btn-overdue" class="px-3 py-1 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100">เลยกำหนด</button>
+          </div>
+          <span id="filtered-count" class="text-xs text-slate-400 font-medium">พบ 0 รายการ</span>
+        </div>
+      </section>
+
+      <!-- Task Cards List Container -->
+      <section id="tasks-container" class="space-y-3">
+        <!-- Rendered dynamically by JS -->
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: Add/Edit Project -->
+  <div id="project-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <h3 id="modal-project-title" class="text-lg font-bold text-slate-800">สร้างโปรเจกต์ใหม่</h3>
+      
+      <form onsubmit="saveProject(event)" class="space-y-3">
+        <input type="hidden" id="project-id-input">
+        
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ชื่อโปรเจกต์</label>
+          <input type="text" id="project-name-input" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400">
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">คำอธิบายสั้นๆ</label>
+          <textarea id="project-desc-input" rows="2" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400"></textarea>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">สีประจำโปรเจกต์</label>
+          <div class="flex gap-2 mt-1">
+            <input type="color" id="project-color-input" value="#7DD3FC" class="w-10 h-10 rounded-lg cursor-pointer border-0">
+            <span class="text-xs text-slate-400 self-center">เลือกสีเพื่อแสดงแท็กบนแดชบอร์ด</span>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeProjectModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Add/Edit Task -->
+  <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <h3 id="modal-task-title" class="text-lg font-bold text-slate-800">สร้างงานใหม่</h3>
+      
+      <form onsubmit="saveTask(event)" class="space-y-3">
+        <input type="hidden" id="task-id-input">
+        
+        <div>
+          <label class="text-xs font-semibold text-slate-600">โปรเจกต์</label>
+          <select id="task-project-select" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400 bg-white"></select>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ชื่องาน (Task Title)</label>
+          <input type="text" id="task-title-input" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400">
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">รายละเอียดเพิ่มเติม</label>
+          <textarea id="task-notes-input" rows="2" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">วันกำหนดส่ง (Due Date)</label>
+            <input type="date" id="task-duedate-input" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400">
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-slate-600">ระดับความสำคัญ</label>
+            <select id="task-priority-select" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs mt-1 focus:outline-none focus:border-purple-400 bg-white">
+              <option value="High">ด่วนมาก (High)</option>
+              <option value="Medium" selected>ปานกลาง (Medium)</option>
+              <option value="Low">ปกติ (Low)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sub-tasks Section -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="text-xs font-semibold text-slate-600 flex justify-between">
+            <span>รายการเช็กลิสต์ย่อย (Sub-tasks)</span>
+            <button type="button" onclick="addSubtaskInput()" class="text-purple-600 hover:underline text-xs">+ เพิ่มรายการ</button>
+          </label>
+          <div id="modal-subtasks-container" class="space-y-2">
+            <!-- Dynamic Subtask Inputs -->
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">ยกเลิก</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-400 to-purple-500 hover:opacity-90 text-white text-xs font-semibold">บันทึกงาน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // Initial Sample Data
+    const defaultProjects = [
+      { id: 'p1', name: 'งานวิจัยและการศึกษา (Research & Study)', desc: 'รวบรวมข้อมูล สถิติ และวิเคราะห์กลุ่มเป้าหมายสำหรับวิทยานิพนธ์', color: '#10B981' },
+      { id: 'p2', name: 'ออกแบบและพัฒนาเว็บไซต์ (Web Dev)', desc: 'งาน Frontend, UI/UX และการเชื่อมต่อ API', color: '#0EA5E9' },
+      { id: 'p3', name: 'เตรียมเปิดตัวสินค้าใหม่ (Product Launch)', desc: 'จัดทำสื่อการตลาด ประชาสัมพันธ์ และโปรโมชัน', color: '#A855F7' }
+    ];
+
+    const defaultTasks = [
+      {
+        id: 't1',
+        projectId: 'p1',
+        title: 'ทบทวนวรรณกรรมและงานวิจัยที่เกี่ยวข้อง (Literature Review)',
+        notes: 'สรุปทฤษฎีบทที่ 2 และ 3 ของงานวิจัยปี 2024-2026',
+        dueDate: '2026-10-01',
+        priority: 'Medium',
+        completed: false,
+        subtasks: [
+          { id: 'st1', title: 'อ่านงานวิจัยฉบับที่ 1-5', completed: true },
+          { id: 'st2', title: 'สรุปประเด็นสำคัญลงบทที่ 2', completed: true },
+          { id: 'st3', title: 'ตรวจทานรายการอ้างอิง', completed: true }
+        ]
+      },
+      {
+        id: 't2',
+        projectId: 'p1',
+        title: 'รวบรวมแบบสอบถามจากกลุ่มตัวอย่าง 100 ชุด',
+        notes: 'กระจายฟอร์มออนไลน์ผ่าน Google Forms และเก็บสถิติ',
+        dueDate: '2026-10-08',
+        priority: 'High',
+        completed: false,
+        subtasks: [
+          { id: 'st4', title: 'สร้าง Google Form', completed: true },
+          { id: 'st5', title: 'ส่งลิงก์ให้กลุ่มตัวอย่าง', completed: false }
+        ]
+      },
+      {
+        id: 't3',
+        projectId: 'p3',
+        title: 'สรุปแพ็กเกจราคาและของสมนาคุณวันแรก',
+        notes: 'จัดทำตารางเปรียบเทียบโปรโมชัน Early Bird',
+        dueDate: '2026-10-04',
+        priority: 'Low',
+        completed: true,
+        subtasks: [
+          { id: 'st6', title: 'คำนวณ ต้นทุน/กำไร', completed: true },
+          { id: 'st7', title: 'ออกแบบป้ายโปรโมชัน', completed: true }
+        ]
+      }
+    ];
+
+    // Global State
+    window.projects = JSON.parse(localStorage.getItem('vici_projects')) || defaultProjects;
+    window.tasks = JSON.parse(localStorage.getItem('vici_tasks')) || defaultTasks;
+    let activeProjectId = 'all';
+    let currentFilterStatus = 'all';
+    let currentLang = 'th';
+
+    // Translations Dictionary
+    const i18n = {
+      th: {
+        autoSave: 'บันทึกออนไลน์ (Firebase Connected)',
+        resetData: 'รีเซ็ตข้อมูล',
+        addProjectBtn: '+ โปรเจกต์ใหม่',
+        addTaskBtn: '+ สร้างงานใหม่',
+        projectsHeader: 'โปรเจกต์ทั้งหมด',
+        allProjects: 'รวมทุกโปรเจกต์ (All)',
+        createProjectSidebar: 'สร้างโปรเจกต์ใหม่',
+        breadcrumbDash: 'แดชบอร์ด',
+        allOverviewTitle: 'ภาพรวมงานทั้งหมด',
+        allOverviewDesc: 'รวมรวบข้อมูล สถิติ และกำหนดส่งงานย่อยทั้งหมด',
+        projProgressLabel: 'ความคืบหน้าของโปรเจกต์',
+        statTotal: 'งานทั้งหมด',
+        statCompleted: 'ทำเสร็จแล้ว',
+        statDueSoon: 'ใกล้กำหนดส่ง',
+        statOverdue: 'เลยกำหนด',
+      },
+      en: {
+        autoSave: 'Online Sync (Firebase Connected)',
+        resetData: 'Reset Data',
+        addProjectBtn: '+ New Project',
+        addTaskBtn: '+ New Task',
+        projectsHeader: 'All Projects',
+        allProjects: 'All Projects Overview',
+        createProjectSidebar: 'Create New Project',
+        breadcrumbDash: 'Dashboard',
+        allOverviewTitle: 'All Projects Overview',
+        allOverviewDesc: 'Track progress, checklist items, and deadlines across all active projects',
+        projProgressLabel: 'Project Completion Progress',
+        statTotal: 'Total Tasks',
+        statCompleted: 'Completed',
+        statDueSoon: 'Due Soon',
+        statOverdue: 'Overdue',
+      }
+    };
+
+    // Save State to LocalStorage & Firebase Cloud
+    function saveData() {
+      localStorage.setItem('vici_projects', JSON.stringify(window.projects));
+      localStorage.setItem('vici_tasks', JSON.stringify(window.tasks));
+      
+      // ส่งข้อมูลขึ้น Firebase
+      if (typeof window.saveDataToFirebase === 'function') {
+        window.saveDataToFirebase(window.projects, window.tasks);
+      }
+      
+      render();
+    }
+
+    // Language Toggle
+    function toggleLanguage() {
+      currentLang = currentLang === 'th' ? 'en' : 'th';
+      updateI18nText();
+      render();
+    }
+
+    function updateI18nText() {
+      const lang = i18n[currentLang];
+      document.getElementById('lang-auto-save').innerText = lang.autoSave;
+      document.getElementById('lang-reset-data').innerText = lang.resetData;
+      document.getElementById('lang-add-project-btn').innerText = lang.addProjectBtn;
+      document.getElementById('lang-add-task-btn').innerText = lang.addTaskBtn;
+      document.getElementById('lang-projects-header').innerText = lang.projectsHeader;
+      document.getElementById('lang-all-projects').innerText = lang.allProjects;
+      document.getElementById('lang-create-project-sidebar').innerText = lang.createProjectSidebar;
+      document.getElementById('lang-breadcrumb-dash').innerText = lang.breadcrumbDash;
+      document.getElementById('lang-proj-progress-label').innerText = lang.projProgressLabel;
+      document.getElementById('lang-stat-total').innerText = lang.statTotal;
+      document.getElementById('lang-stat-completed').innerText = lang.statCompleted;
+      document.getElementById('lang-stat-duesoon').innerText = lang.statDueSoon;
+      document.getElementById('lang-stat-overdue').innerText = lang.statOverdue;
+    }
+
+    // Filter Controls
+    function setFilterStatus(status) {
+      currentFilterStatus = status;
+      renderTasks();
+    }
+
+    function selectProject(pId) {
+      activeProjectId = pId;
+      render();
+    }
+
+    // RENDER MAIN FUNCTION
+    window.render = function() {
+      renderProjectsSidebar();
+      renderDashboardHeader();
+      renderTasks();
+    }
+
+    // Render Sidebar
+    function renderProjectsSidebar() {
+      const container = document.getElementById('projects-list-container');
+      container.innerHTML = '';
+
+      document.getElementById('total-projects-badge').innerText = window.projects.length;
+      document.getElementById('all-tasks-count').innerText = window.tasks.length;
+
+      const allBtn = document.getElementById('project-item-all');
+      if (activeProjectId === 'all') {
+        allBtn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-between bg-sky-50 text-sky-600 border border-sky-200 shadow-xs';
+      } else {
+        allBtn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition flex items-center justify-between text-slate-600 hover:bg-slate-50 border border-transparent';
+      }
+
+      window.projects.forEach(p => {
+        const pTasks = window.tasks.filter(t => t.projectId === p.id);
+        const pDone = pTasks.filter(t => t.completed).length;
+        const isActive = activeProjectId === p.id;
+
+        const item = document.createElement('div');
+        item.className = `group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition ${
+          isActive ? 'bg-purple-50 text-purple-700 font-semibold border border-purple-200 shadow-xs' : 'text-slate-600 hover:bg-slate-50'
+        }`;
+
+        item.innerHTML = `
+          <div onclick="selectProject('${p.id}')" class="flex items-center gap-2 flex-1 truncate">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${p.color || '#3B82F6'}"></span>
+            <span class="truncate">${p.name}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400 bg-white/80 px-1.5 py-0.5 rounded-md font-semibold border border-slate-100">${pDone}/${pTasks.length}</span>
+            <div class="hidden group-hover:flex items-center gap-1 ml-1">
+              <button onclick="event.stopPropagation(); editProject('${p.id}')" class="p-1 text-slate-400 hover:text-purple-600"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="event.stopPropagation(); deleteProject('${p.id}')" class="p-1 text-slate-400 hover:text-rose-500"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Render Dashboard Header
+    function renderDashboardHeader() {
+      let filteredTasks = activeProjectId === 'all' ? window.tasks : window.tasks.filter(t => t.projectId === activeProjectId);
+      let title = currentLang === 'th' ? 'ภาพรวมงานทั้งหมด' : 'All Projects Overview';
+      let desc = currentLang === 'th' ? 'รวมรวบข้อมูล สถิติ และกำหนดส่งงานย่อยทั้งหมด' : 'Unified project tracking and sub-tasks list';
+
+      if (activeProjectId !== 'all') {
+        const proj = window.projects.find(p => p.id === activeProjectId);
+        if (proj) {
+          title = proj.name;
+          desc = proj.desc || '';
+        }
+      }
+
+      document.getElementById('current-project-title').innerText = title;
+      document.getElementById('current-project-desc').innerText = desc;
+      document.getElementById('current-project-breadcrumb').innerText = title;
+
+      const total = filteredTasks.length;
+      const completed = filteredTasks.filter(t => t.completed).length;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const remaining = total - completed;
+
+      document.getElementById('overall-progress-text').innerText = `${percent}%`;
+      document.getElementById('overall-progress-sub').innerText = currentLang === 'th' 
+        ? `(สำเร็จ ${completed} จากทั้งหมด ${total} รายการ)` 
+        : `(${completed} of ${total} completed)`;
+      document.getElementById('overall-progress-bar').style.width = `${percent}%`;
+      document.getElementById('remaining-tasks-badge').innerText = currentLang === 'th' 
+        ? `เหลืองานอีก ${remaining} รายการ` 
+        : `${remaining} tasks remaining`;
+
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      let dueSoonCount = 0;
+      let overdueCount = 0;
+
+      filteredTasks.forEach(t => {
+        if (!t.completed && t.dueDate) {
+          const due = new Date(t.dueDate);
+          due.setHours(0,0,0,0);
+          const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) overdueCount++;
+          else if (diffDays <= 3) dueSoonCount++;
+        }
+      });
+
+      document.getElementById('stat-total-val').innerHTML = `${total} <span class="text-xs font-normal text-slate-400">${currentLang === 'th' ? 'รายการ' : 'items'}</span>`;
+      document.getElementById('stat-completed-val').innerHTML = `${completed} <span class="text-xs font-normal text-emerald-500">(${percent}%)</span>`;
+      document.getElementById('stat-duesoon-val').innerHTML = `${dueSoonCount} <span class="text-xs font-normal text-amber-500">${currentLang === 'th' ? 'ภายใน 3 วัน' : 'within 3 days'}</span>`;
+      document.getElementById('stat-overdue-val').innerHTML = `${overdueCount} <span class="text-xs font-normal text-rose-500">${currentLang === 'th' ? 'ต้องเร่งด่วน' : 'urgent'}</span>`;
+    }
+
+    // Render Tasks List
+    function renderTasks() {
+      const container = document.getElementById('tasks-container');
+      container.innerHTML = '';
+
+      let list = activeProjectId === 'all' ? [...window.tasks] : window.tasks.filter(t => t.projectId === activeProjectId);
+
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      if (query) {
+        list = list.filter(t => t.title.toLowerCase().includes(query) || (t.notes && t.notes.toLowerCase().includes(query)));
+      }
+
+      const prio = document.getElementById('priority-filter').value;
+      if (prio !== 'all') {
+        list = list.filter(t => t.priority === prio);
+      }
+
+      const now = new Date();
+      now.setHours(0,0,0,0);
+
+      if (currentFilterStatus === 'active') list = list.filter(t => !t.completed);
+      else if (currentFilterStatus === 'completed') list = list.filter(t => t.completed);
+      else if (currentFilterStatus === 'duesoon') {
+        list = list.filter(t => {
+          if (t.completed || !t.dueDate) return false;
+          const due = new Date(t.dueDate); due.setHours(0,0,0,0);
+          const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 3;
+        });
+      } else if (currentFilterStatus === 'overdue') {
+        list = list.filter(t => {
+          if (t.completed || !t.dueDate) return false;
+          const due = new Date(t.dueDate); due.setHours(0,0,0,0);
+          return Math.ceil((due - now) / (1000 * 60 * 60 * 24)) < 0;
+        });
+      }
+
+      document.getElementById('filtered-count').innerText = currentLang === 'th' ? `พบ ${list.length} รายการ` : `Found ${list.length} items`;
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl p-8 border border-slate-100 text-center space-y-2">
+            <i class="fa-solid fa-clipboard-list text-4xl text-slate-200"></i>
+            <p class="text-sm font-medium text-slate-400">ไม่พบรายการงานตามเงื่อนไขที่เลือก</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.forEach(t => {
+        const proj = window.projects.find(p => p.id === t.projectId) || { name: 'General', color: '#94A3B8' };
+        
+        const subtasks = t.subtasks || [];
+        const subDone = subtasks.filter(s => s.completed).length;
+        const subPercent = subtasks.length > 0 ? Math.round((subDone / subtasks.length) * 100) : (t.completed ? 100 : 0);
+
+        let dueBadgeHTML = '';
+        if (t.dueDate) {
+          const due = new Date(t.dueDate);
+          due.setHours(0,0,0,0);
+          const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+
+          if (t.completed) {
+            dueBadgeHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500"><i class="fa-solid fa-check mr-1"></i>เสร็จสิ้นแล้ว</span>`;
+          } else if (diffDays < 0) {
+            dueBadgeHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-50 text-rose-600 border border-rose-100"><i class="fa-solid fa-circle-exclamation mr-1"></i>เลยกำหนด ${Math.abs(diffDays)} วัน</span>`;
+          } else if (diffDays <= 3) {
+            dueBadgeHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-100"><i class="fa-solid fa-clock mr-1"></i>เหลืออีก ${diffDays} วัน</span>`;
+          } else {
+            dueBadgeHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-50 text-slate-500 border border-slate-200">${t.dueDate}</span>`;
+          }
+        }
+
+        const card = document.createElement('div');
+        card.className = `bg-white rounded-2xl p-4 border border-slate-100 shadow-xs hover:shadow-md transition space-y-3 ${t.completed ? 'opacity-75 bg-slate-50/50' : ''}`;
+
+        card.innerHTML = `
+          <div class="flex items-start gap-3">
+            <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')" class="custom-checkbox mt-1">
+
+            <div class="flex-1 space-y-1">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style="background-color: ${proj.color}">${proj.name}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-100">${t.priority}</span>
+                  ${dueBadgeHTML}
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div class="w-24 bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div class="gradient-progress h-full rounded-full transition-all duration-300" style="width: ${subPercent}%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-purple-600 min-w-[32px] text-right">${subPercent}%</span>
+                  
+                  <div class="relative flex items-center ml-1">
+                    <button onclick="editTask('${t.id}')" class="p-1 text-slate-400 hover:text-purple-600 text-xs"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteTask('${t.id}')" class="p-1 text-slate-400 hover:text-rose-500 text-xs ml-1"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                </div>
+              </div>
+
+              <h3 class="text-sm font-bold text-slate-800 ${t.completed ? 'line-through text-slate-400' : ''}">${t.title}</h3>
+              ${t.notes ? `<p class="text-xs text-slate-500">${t.notes}</p>` : ''}
+            </div>
+          </div>
+
+          <!-- Sub-tasks Checklist -->
+          ${subtasks.length > 0 ? `
+            <div class="pl-8 pt-2 border-t border-slate-100 space-y-1.5">
+              <div class="text-[11px] font-semibold text-slate-400 flex items-center justify-between">
+                <span><i class="fa-solid fa-list-ul mr-1"></i> เช็กลิสต์ย่อย (${subDone}/${subtasks.length})</span>
+              </div>
+              <div class="space-y-1">
+                ${subtasks.map(st => `
+                  <div class="flex items-center gap-2 text-xs text-slate-600 hover:bg-slate-50 p-1 rounded-lg transition">
+                    <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskComplete('${t.id}', '${st.id}')" class="subtask-checkbox">
+                    <span class="${st.completed ? 'line-through text-slate-400' : ''}">${st.title}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // TASK & SUBTASK ACTIONS
+    function toggleTaskComplete(taskId) {
+      const task = window.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.completed = !task.completed;
+        if (task.subtasks) {
+          task.subtasks.forEach(st => st.completed = task.completed);
+        }
+        saveData();
+      }
+    }
+
+    function toggleSubtaskComplete(taskId, subtaskId) {
+      const task = window.tasks.find(t => t.id === taskId);
+      if (task && task.subtasks) {
+        const st = task.subtasks.find(s => s.id === subtaskId);
+        if (st) {
+          st.completed = !st.completed;
+          const allDone = task.subtasks.every(s => s.completed);
+          task.completed = allDone;
+          saveData();
+        }
+      }
+    }
+
+    function deleteTask(taskId) {
+      if (confirm('คุณต้องการลบงานนี้ใช่หรือไม่?')) {
+        window.tasks = window.tasks.filter(t => t.id !== taskId);
+        saveData();
+      }
+    }
+
+    // PROJECT ACTIONS
+    function openProjectModal(editId = null) {
+      const modal = document.getElementById('project-modal');
+      document.getElementById('project-id-input').value = editId || '';
+      document.getElementById('modal-project-title').innerText = editId ? 'แก้ไขโปรเจกต์' : 'สร้างโปรเจกต์ใหม่';
+
+      if (editId) {
+        const p = window.projects.find(proj => proj.id === editId);
+        if (p) {
+          document.getElementById('project-name-input').value = p.name;
+          document.getElementById('project-desc-input').value = p.desc || '';
+          document.getElementById('project-color-input').value = p.color || '#7DD3FC';
+        }
+      } else {
+        document.getElementById('project-name-input').value = '';
+        document.getElementById('project-desc-input').value = '';
+        document.getElementById('project-color-input').value = '#7DD3FC';
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeProjectModal() {
+      document.getElementById('project-modal').classList.add('hidden');
+    }
+
+    function saveProject(e) {
+      e.preventDefault();
+      const id = document.getElementById('project-id-input').value;
+      const name = document.getElementById('project-name-input').value;
+      const desc = document.getElementById('project-desc-input').value;
+      const color = document.getElementById('project-color-input').value;
+
+      if (id) {
+        const p = window.projects.find(proj => proj.id === id);
+        if (p) {
+          p.name = name;
+          p.desc = desc;
+          p.color = color;
+        }
+      } else {
+        window.projects.push({
+          id: 'p_' + Date.now(),
+          name,
+          desc,
+          color
+        });
+      }
+
+      closeProjectModal();
+      saveData();
+    }
+
+    function editProject(id) {
+      openProjectModal(id);
+    }
+
+    function deleteProject(id) {
+      if (confirm('คุณต้องการลบโปรเจกต์นี้และงานทั้งหมดที่อยู่ในโปรเจกต์นี้ใช่หรือไม่?')) {
+        window.projects = window.projects.filter(p => p.id !== id);
+        window.tasks = window.tasks.filter(t => t.projectId !== id);
+        if (activeProjectId === id) activeProjectId = 'all';
+        saveData();
+      }
+    }
+
+    // TASK MODAL ACTIONS
+    function openTaskModal(editId = null) {
+      const modal = document.getElementById('task-modal');
+      const select = document.getElementById('task-project-select');
+      select.innerHTML = window.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+      document.getElementById('task-id-input').value = editId || '';
+      document.getElementById('modal-task-title').innerText = editId ? 'แก้ไขงาน' : 'สร้างงานใหม่';
+      document.getElementById('modal-subtasks-container').innerHTML = '';
+
+      if (editId) {
+        const t = window.tasks.find(item => item.id === editId);
+        if (t) {
+          select.value = t.projectId;
+          document.getElementById('task-title-input').value = t.title;
+          document.getElementById('task-notes-input').value = t.notes || '';
+          document.getElementById('task-duedate-input').value = t.dueDate || '';
+          document.getElementById('task-priority-select').value = t.priority || 'Medium';
+
+          if (t.subtasks) {
+            t.subtasks.forEach(st => addSubtaskInput(st.title, st.completed));
+          }
+        }
+      } else {
+        if (activeProjectId !== 'all') select.value = activeProjectId;
+        document.getElementById('task-title-input').value = '';
+        document.getElementById('task-notes-input').value = '';
+        document.getElementById('task-duedate-input').value = new Date().toISOString().split('T')[0];
+        document.getElementById('task-priority-select').value = 'Medium';
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeTaskModal() {
+      document.getElementById('task-modal').classList.add('hidden');
+    }
+
+    function addSubtaskInput(title = '', completed = false) {
+      const container = document.getElementById('modal-subtasks-container');
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-2';
+      div.innerHTML = `
+        <input type="checkbox" ${completed ? 'checked' : ''} class="subtask-completed-check w-4 h-4 accent-purple-500 rounded">
+        <input type="text" value="${title}" placeholder="ระบุรายการย่อย..." class="subtask-title-input flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-purple-400">
+        <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 p-1 text-xs"><i class="fa-solid fa-xmark"></i></button>
+      `;
+      container.appendChild(div);
+    }
+
+    function saveTask(e) {
+      e.preventDefault();
+      const id = document.getElementById('task-id-input').value;
+      const projectId = document.getElementById('task-project-select').value;
+      const title = document.getElementById('task-title-input').value;
+      const notes = document.getElementById('task-notes-input').value;
+      const dueDate = document.getElementById('task-duedate-input').value;
+      const priority = document.getElementById('task-priority-select').value;
+
+      const subtaskDivs = document.querySelectorAll('#modal-subtasks-container > div');
+      const subtasks = Array.from(subtaskDivs).map((div, index) => {
+        return {
+          id: 'st_' + Date.now() + '_' + index,
+          title: div.querySelector('.subtask-title-input').value.trim(),
+          completed: div.querySelector('.subtask-completed-check').checked
+        };
+      }).filter(s => s.title !== '');
+
+      if (id) {
+        const t = window.tasks.find(item => item.id === id);
+        if (t) {
+          t.projectId = projectId;
+          t.title = title;
+          t.notes = notes;
+          t.dueDate = dueDate;
+          t.priority = priority;
+          t.subtasks = subtasks;
+        }
+      } else {
+        window.tasks.push({
+          id: 't_' + Date.now(),
+          projectId,
+          title,
+          notes,
+          dueDate,
+          priority,
+          completed: false,
+          subtasks
+        });
+      }
+
+      closeTaskModal();
+      saveData();
+    }
+
+    function editTask(id) {
+      openTaskModal(id);
+    }
+
+    function resetSampleData() {
+      if (confirm('ต้องการรีเซ็ตข้อมูลตัวอย่างทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) {
+        window.projects = [...defaultProjects];
+        window.tasks = [...defaultTasks];
+        saveData();
+      }
+    }
+
+    // INITIALIZATION
+    window.onload = () => {
+      updateI18nText();
+      window.render();
+    };
+  </script>
+</body>
+</html>
