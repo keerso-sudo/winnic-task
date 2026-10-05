@@ -41,7 +41,6 @@
   <style>
     body { font-family: 'Noto Sans Thai', sans-serif; }
     
-    /* Custom Pastel Checkbox (สำหรับ Task หลัก) */
     .custom-checkbox {
       appearance: none;
       -webkit-appearance: none;
@@ -71,7 +70,6 @@
       transform: translate(-50%, -50%);
     }
 
-    /* Custom Subtask Checkbox (มุมมน + Pastel Gradient เมื่อติ๊ก) */
     .subtask-checkbox {
       appearance: none;
       -webkit-appearance: none;
@@ -101,7 +99,6 @@
       transform: translate(-50%, -50%);
     }
 
-    /* Gradient Progress Bar */
     .gradient-progress {
       background: linear-gradient(90deg, #7DD3FC 0%, #C084FC 100%);
     }
@@ -112,7 +109,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // คีย์เชื่อมต่อ Firebase WinnicTask ของคุณ
     const firebaseConfig = {
       apiKey: "AIzaSyCAUmh19z6Spd275e2wU8El9asqS4X5hSY",
       authDomain: "winnictask.firebaseapp.com",
@@ -123,11 +119,9 @@
       measurementId: "G-6Z32WBG81M"
     };
 
-    // Initialize Firebase & Firestore Database
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ฟังก์ชันบันทึกข้อมูลไปยัง Firebase Cloud
     window.saveDataToFirebase = async function(projectsData, tasksData) {
       try {
         await setDoc(doc(db, "vici_task_data", "main_store"), {
@@ -141,7 +135,6 @@
       }
     };
 
-    // ดึงข้อมูล Realtime อัตโนมัติเมื่อมีข้อมูลเปลี่ยนแปลงบน Cloud
     onSnapshot(doc(db, "vici_task_data", "main_store"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -177,6 +170,12 @@
           <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
           <span id="lang-auto-save">บันทึกออนไลน์ (Firebase Connected)</span>
         </span>
+
+        <!-- Admin Auth Status Button -->
+        <button id="admin-lock-btn" onclick="toggleAdminAuth()" class="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold transition flex items-center gap-1.5">
+          <i id="admin-lock-icon" class="fa-solid fa-lock text-amber-500"></i>
+          <span id="admin-lock-text">โหมดอ่านอย่างเดียว (คลิกเพื่อปลดล็อก Admin)</span>
+        </button>
         
         <!-- Language Switcher -->
         <button id="lang-toggle-btn" onclick="toggleLanguage()" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium transition flex items-center gap-1.5">
@@ -184,15 +183,15 @@
           <span id="current-lang-text">TH / EN</span>
         </button>
 
-        <button onclick="resetSampleData()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition">
+        <button onclick="resetSampleDataWithAuth()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition">
           <i class="fa-solid fa-rotate-right mr-1"></i> <span id="lang-reset-data">รีเซ็ตข้อมูล</span>
         </button>
 
-        <button onclick="openProjectModal()" class="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-semibold transition border border-purple-200">
+        <button onclick="openProjectModalWithAuth()" class="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-semibold transition border border-purple-200">
           <i class="fa-solid fa-folder-plus mr-1"></i> <span id="lang-add-project-btn">+ โปรเจกต์ใหม่</span>
         </button>
 
-        <button onclick="openTaskModal()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-400 to-purple-500 hover:opacity-90 text-white text-xs font-semibold shadow-sm transition">
+        <button onclick="openTaskModalWithAuth()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-sky-400 to-purple-500 hover:opacity-90 text-white text-xs font-semibold shadow-sm transition">
           <i class="fa-solid fa-plus mr-1"></i> <span id="lang-add-task-btn">+ สร้างงานใหม่</span>
         </button>
       </div>
@@ -210,7 +209,6 @@
           <span id="total-projects-badge" class="bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-bold">0</span>
         </div>
 
-        <!-- All Projects Button -->
         <button onclick="selectProject('all')" id="project-item-all" class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition flex items-center justify-between bg-sky-50 text-sky-600 border border-sky-100">
           <span class="flex items-center gap-2">
             <i class="fa-solid fa-layer-group text-sky-400"></i>
@@ -221,13 +219,11 @@
 
         <hr class="border-slate-100">
 
-        <!-- Dynamic Projects List -->
         <div class="space-y-1 max-h-[400px] overflow-y-auto pr-1" id="projects-list-container">
           <!-- Rendered by JS -->
         </div>
 
-        <!-- Add Project Button inside Sidebar -->
-        <button onclick="openProjectModal()" class="w-full py-2 border-2 border-dashed border-purple-200 hover:border-purple-300 rounded-xl text-xs font-medium text-purple-600 hover:bg-purple-50 transition flex items-center justify-center gap-1">
+        <button onclick="openProjectModalWithAuth()" class="w-full py-2 border-2 border-dashed border-purple-200 hover:border-purple-300 rounded-xl text-xs font-medium text-purple-600 hover:bg-purple-50 transition flex items-center justify-center gap-1">
           <i class="fa-solid fa-plus"></i> <span id="lang-create-project-sidebar">สร้างโปรเจกต์ใหม่</span>
         </button>
       </div>
@@ -236,7 +232,6 @@
     <!-- MAIN DASHBOARD CONTENT -->
     <main class="flex-1 space-y-6">
       
-      <!-- Full-Width Main Dashboard Header & Highlighted Progress Box -->
       <section class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-4">
         <div>
           <div class="text-xs text-slate-400 font-medium mb-1 flex items-center gap-1">
@@ -246,7 +241,6 @@
           <p id="current-project-desc" class="text-xs text-slate-500 mt-1">ติดตามความคืบหน้า รายการเช็กลิสต์ และกำหนดส่งงานย่อยทั้งหมด</p>
         </div>
 
-        <!-- Expanded Full-Width High-Visibility Progress Bar Box -->
         <div class="w-full bg-gradient-to-r from-sky-50/80 via-purple-50/50 to-pink-50/80 p-5 rounded-xl border border-purple-100 space-y-3">
           <div class="flex flex-wrap justify-between items-end gap-2">
             <div>
@@ -261,7 +255,6 @@
             </span>
           </div>
 
-          <!-- Prominent Progress Bar Bar -->
           <div class="w-full bg-slate-200/80 h-3.5 rounded-full overflow-hidden p-0.5 shadow-inner">
             <div id="overall-progress-bar" class="gradient-progress h-full rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
@@ -412,7 +405,6 @@
           </div>
         </div>
 
-        <!-- Sub-tasks Section -->
         <div class="space-y-2 pt-2 border-t border-slate-100">
           <label class="text-xs font-semibold text-slate-600 flex justify-between">
             <span>รายการเช็กลิสต์ย่อย (Sub-tasks)</span>
@@ -431,9 +423,65 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT LOGIC -->
+  <!-- JAVASCRIPT LOGIC WITH ADMIN SECURITY LOCK -->
   <script>
-    // Initial Sample Data
+    // ADMIN SECURITY SETTINGS
+    const ADMIN_PIN = "1234"; // << คุณสามารถเปลี่ยนรหัสผ่านได้ที่นี่!
+    let isAdminAuthenticated = false;
+
+    function checkAdminAuth() {
+      if (isAdminAuthenticated) return true;
+      const inputPin = prompt("🔑 กรุณากรอก Admin PIN เพื่อแก้ไขข้อมูล:");
+      if (inputPin === ADMIN_PIN) {
+        isAdminAuthenticated = true;
+        updateAdminLockUI();
+        alert("✅ ยืนยันรหัสผ่านถูกต้อง! คุณได้รับสิทธิ์ Admin ในการแก้ไขข้อมูลแล้ว");
+        return true;
+      } else if (inputPin !== null) {
+        alert("❌ รหัสผ่านไม่ถูกต้อง! โหมดอ่านอย่างเดียว (Read-Only)");
+      }
+      return false;
+    }
+
+    function toggleAdminAuth() {
+      if (isAdminAuthenticated) {
+        isAdminAuthenticated = false;
+        updateAdminLockUI();
+        alert("🔒 ออกจากโหมด Admin แล้ว (กลับสู่โหมดอ่านอย่างเดียว)");
+      } else {
+        checkAdminAuth();
+      }
+    }
+
+    function updateAdminLockUI() {
+      const lockBtn = document.getElementById('admin-lock-btn');
+      const lockIcon = document.getElementById('admin-lock-icon');
+      const lockText = document.getElementById('admin-lock-text');
+
+      if (isAdminAuthenticated) {
+        lockBtn.className = "px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold transition flex items-center gap-1.5";
+        lockIcon.className = "fa-solid fa-lock-open text-emerald-600";
+        lockText.innerText = "โหมด Admin (แก้ไขได้) - คลิกเพื่อล็อก";
+      } else {
+        lockBtn.className = "px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold transition flex items-center gap-1.5";
+        lockIcon.className = "fa-solid fa-lock text-amber-500";
+        lockText.innerText = "โหมดอ่านอย่างเดียว (คลิกเพื่อปลดล็อก Admin)";
+      }
+    }
+
+    function openProjectModalWithAuth(editId = null) {
+      if (checkAdminAuth()) openProjectModal(editId);
+    }
+
+    function openTaskModalWithAuth(editId = null) {
+      if (checkAdminAuth()) openTaskModal(editId);
+    }
+
+    function resetSampleDataWithAuth() {
+      if (checkAdminAuth()) resetSampleData();
+    }
+
+    // Default Data
     const defaultProjects = [
       { id: 'p1', name: 'งานวิจัยและการศึกษา (Research & Study)', desc: 'รวบรวมข้อมูล สถิติ และวิเคราะห์กลุ่มเป้าหมายสำหรับวิทยานิพนธ์', color: '#10B981' },
       { id: 'p2', name: 'ออกแบบและพัฒนาเว็บไซต์ (Web Dev)', desc: 'งาน Frontend, UI/UX และการเชื่อมต่อ API', color: '#0EA5E9' },
@@ -483,14 +531,12 @@
       }
     ];
 
-    // Global State
     window.projects = JSON.parse(localStorage.getItem('vici_projects')) || defaultProjects;
     window.tasks = JSON.parse(localStorage.getItem('vici_tasks')) || defaultTasks;
     let activeProjectId = 'all';
     let currentFilterStatus = 'all';
     let currentLang = 'th';
 
-    // Translations Dictionary
     const i18n = {
       th: {
         autoSave: 'บันทึกออนไลน์ (Firebase Connected)',
@@ -528,12 +574,10 @@
       }
     };
 
-    // Save State to LocalStorage & Firebase Cloud
     function saveData() {
       localStorage.setItem('vici_projects', JSON.stringify(window.projects));
       localStorage.setItem('vici_tasks', JSON.stringify(window.tasks));
       
-      // ส่งข้อมูลขึ้น Firebase
       if (typeof window.saveDataToFirebase === 'function') {
         window.saveDataToFirebase(window.projects, window.tasks);
       }
@@ -541,7 +585,6 @@
       render();
     }
 
-    // Language Toggle
     function toggleLanguage() {
       currentLang = currentLang === 'th' ? 'en' : 'th';
       updateI18nText();
@@ -565,7 +608,6 @@
       document.getElementById('lang-stat-overdue').innerText = lang.statOverdue;
     }
 
-    // Filter Controls
     function setFilterStatus(status) {
       currentFilterStatus = status;
       renderTasks();
@@ -576,14 +618,12 @@
       render();
     }
 
-    // RENDER MAIN FUNCTION
     window.render = function() {
       renderProjectsSidebar();
       renderDashboardHeader();
       renderTasks();
     }
 
-    // Render Sidebar
     function renderProjectsSidebar() {
       const container = document.getElementById('projects-list-container');
       container.innerHTML = '';
@@ -616,7 +656,7 @@
           <div class="flex items-center gap-1.5">
             <span class="text-[10px] text-slate-400 bg-white/80 px-1.5 py-0.5 rounded-md font-semibold border border-slate-100">${pDone}/${pTasks.length}</span>
             <div class="hidden group-hover:flex items-center gap-1 ml-1">
-              <button onclick="event.stopPropagation(); editProject('${p.id}')" class="p-1 text-slate-400 hover:text-purple-600"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="event.stopPropagation(); openProjectModalWithAuth('${p.id}')" class="p-1 text-slate-400 hover:text-purple-600"><i class="fa-solid fa-pen"></i></button>
               <button onclick="event.stopPropagation(); deleteProject('${p.id}')" class="p-1 text-slate-400 hover:text-rose-500"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>
@@ -625,7 +665,6 @@
       });
     }
 
-    // Render Dashboard Header
     function renderDashboardHeader() {
       let filteredTasks = activeProjectId === 'all' ? window.tasks : window.tasks.filter(t => t.projectId === activeProjectId);
       let title = currentLang === 'th' ? 'ภาพรวมงานทั้งหมด' : 'All Projects Overview';
@@ -679,7 +718,6 @@
       document.getElementById('stat-overdue-val').innerHTML = `${overdueCount} <span class="text-xs font-normal text-rose-500">${currentLang === 'th' ? 'ต้องเร่งด่วน' : 'urgent'}</span>`;
     }
 
-    // Render Tasks List
     function renderTasks() {
       const container = document.getElementById('tasks-container');
       container.innerHTML = '';
@@ -774,7 +812,7 @@
                   <span class="text-xs font-bold text-purple-600 min-w-[32px] text-right">${subPercent}%</span>
                   
                   <div class="relative flex items-center ml-1">
-                    <button onclick="editTask('${t.id}')" class="p-1 text-slate-400 hover:text-purple-600 text-xs"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="openTaskModalWithAuth('${t.id}')" class="p-1 text-slate-400 hover:text-purple-600 text-xs"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="deleteTask('${t.id}')" class="p-1 text-slate-400 hover:text-rose-500 text-xs ml-1"><i class="fa-solid fa-trash"></i></button>
                   </div>
                 </div>
@@ -785,7 +823,6 @@
             </div>
           </div>
 
-          <!-- Sub-tasks Checklist -->
           ${subtasks.length > 0 ? `
             <div class="pl-8 pt-2 border-t border-slate-100 space-y-1.5">
               <div class="text-[11px] font-semibold text-slate-400 flex items-center justify-between">
@@ -807,8 +844,8 @@
       });
     }
 
-    // TASK & SUBTASK ACTIONS
     function toggleTaskComplete(taskId) {
+      if (!checkAdminAuth()) { renderTasks(); return; }
       const task = window.tasks.find(t => t.id === taskId);
       if (task) {
         task.completed = !task.completed;
@@ -820,6 +857,7 @@
     }
 
     function toggleSubtaskComplete(taskId, subtaskId) {
+      if (!checkAdminAuth()) { renderTasks(); return; }
       const task = window.tasks.find(t => t.id === taskId);
       if (task && task.subtasks) {
         const st = task.subtasks.find(s => s.id === subtaskId);
@@ -833,13 +871,13 @@
     }
 
     function deleteTask(taskId) {
+      if (!checkAdminAuth()) return;
       if (confirm('คุณต้องการลบงานนี้ใช่หรือไม่?')) {
         window.tasks = window.tasks.filter(t => t.id !== taskId);
         saveData();
       }
     }
 
-    // PROJECT ACTIONS
     function openProjectModal(editId = null) {
       const modal = document.getElementById('project-modal');
       document.getElementById('project-id-input').value = editId || '';
@@ -892,11 +930,8 @@
       saveData();
     }
 
-    function editProject(id) {
-      openProjectModal(id);
-    }
-
     function deleteProject(id) {
+      if (!checkAdminAuth()) return;
       if (confirm('คุณต้องการลบโปรเจกต์นี้และงานทั้งหมดที่อยู่ในโปรเจกต์นี้ใช่หรือไม่?')) {
         window.projects = window.projects.filter(p => p.id !== id);
         window.tasks = window.tasks.filter(t => t.projectId !== id);
@@ -905,7 +940,6 @@
       }
     }
 
-    // TASK MODAL ACTIONS
     function openTaskModal(editId = null) {
       const modal = document.getElementById('task-modal');
       const select = document.getElementById('task-project-select');
@@ -1000,10 +1034,6 @@
       saveData();
     }
 
-    function editTask(id) {
-      openTaskModal(id);
-    }
-
     function resetSampleData() {
       if (confirm('ต้องการรีเซ็ตข้อมูลตัวอย่างทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) {
         window.projects = [...defaultProjects];
@@ -1012,9 +1042,9 @@
       }
     }
 
-    // INITIALIZATION
     window.onload = () => {
       updateI18nText();
+      updateAdminLockUI();
       window.render();
     };
   </script>
